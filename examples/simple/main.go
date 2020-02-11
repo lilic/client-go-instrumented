@@ -54,8 +54,10 @@ func main() {
 	r := prometheus.NewRegistry()
 	m := metrics.NewClientMetrics(r)
 
+	a := scale.NewInstrumentedAutoscalingV1Client(kubeClient.AutoscalingV1(), m, false, false)
+
 	// autoscalingV1InstrumentedClient for the default namespace, with disabled name and enabled namespace label values
-	c := scale.NewHorizontalPodAutoscalers("default", kubeClient.AutoscalingV1(), m, false, false)
+	c := a.HorizontalPodAutoscalers("default")
 
 	// do a bunch of get requests on the instrumented client
 	_, err = c.Get(context.TODO(), "bla", metav1.GetOptions{})
