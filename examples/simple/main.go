@@ -14,6 +14,7 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log"
@@ -21,11 +22,13 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog"
 
 	"github.com/lilic/client-go-instrumented/metrics"
+	scale "github.com/lilic/client-go-instrumented/typed/autoscaling/v1"
 )
 
 var (
@@ -51,24 +54,53 @@ func main() {
 	r := prometheus.NewRegistry()
 	m := metrics.NewClientMetrics(r)
 
-	c := NewHPA(kubeClient, m, true, false)
+	// autoscalingV1InstrumentedClient for the default namespace, with disabled name and enabled namespace label values
+	c := scale.NewHorizontalPodAutoscalers("default", kubeClient.AutoscalingV1(), m, false, false)
 
-	err = c.Get("bla")
+	// do a bunch of get requests on the instrumented client
+	_, err = c.Get(context.TODO(), "bla", metav1.GetOptions{})
 	if err != nil {
 		fmt.Println(err)
 	}
-	err = c.Get(name)
+	_, err = c.Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		fmt.Println(err)
 	}
-	err = c.Get("blah")
+	_, err = c.Get(context.TODO(), "blah", metav1.GetOptions{})
 	if err != nil {
 		fmt.Println(err)
 	}
-	err = c.Get(name)
+	existingHPA, err := c.Get(context.TODO(), name, metav1.GetOptions{})
+	if err != nil {
+		fmt.Println(err)
+		klog.Fatalf("failed to get hpa: %s", err.Error())
+	}
+
+	// update an existing hpa
+	_, err = c.Update(context.TODO(), existingHPA, metav1.UpdateOptions{})
 	if err != nil {
 		fmt.Println(err)
 	}
+
+	// delete an existing hpa
+	err = c.Delete(context.TODO(), name, &metav1.DeleteOptions{})
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	// delete a failed hpa
+	err = c.Delete(context.TODO(), "blah", &metav1.DeleteOptions{})
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	// update a deleted hpa
+	_, err = c.Update(context.TODO(), existingHPA, metav1.UpdateOptions{})
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	// serve metrics
 	http.Handle("/metrics", promhttp.HandlerFor(r, promhttp.HandlerOpts{}))
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
