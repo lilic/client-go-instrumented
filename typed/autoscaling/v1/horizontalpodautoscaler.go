@@ -52,126 +52,144 @@ type HorizontalPodAutoscalerInterface interface {
 
 // horizontalPodAutoscalers implements HorizontalPodAutoscalerInterface
 type horizontalPodAutoscalers struct {
-	hpa     av1.AutoscalingV1Interface
-	ns      string
-	metrics *metrics.ClientMetrics
+	hpa                           av1.AutoscalingV1Interface
+	ns                            string
+	metrics                       *metrics.ClientMetrics
+	disableName, disableNamespace bool
 }
 
-// newHorizontalPodAutoscalers returns a HorizontalPodAutoscalers
-func NewHorizontalPodAutoscalers(namespace string, hpaclient av1.AutoscalingV1Interface, m *metrics.ClientMetrics) *horizontalPodAutoscalers {
+// NewHorizontalPodAutoscalers returns a HorizontalPodAutoscalers
+func NewHorizontalPodAutoscalers(namespace string, hpaclient av1.AutoscalingV1Interface, m *metrics.ClientMetrics, dname, dnamespace bool) *horizontalPodAutoscalers {
 	return &horizontalPodAutoscalers{
-		hpa:     hpaclient,
-		ns:      namespace,
-		metrics: m,
+		hpa:              hpaclient,
+		ns:               namespace,
+		metrics:          m,
+		disableName:      dname,
+		disableNamespace: dnamespace,
 	}
 }
 
 // Get takes name of the horizontalPodAutoscaler, and returns the corresponding horizontalPodAutoscaler object, and an error if there is any.
 func (c *horizontalPodAutoscalers) Get(ctx context.Context, name string, options metav1.GetOptions) (result *v1.HorizontalPodAutoscaler, err error) {
+	n := c.getName(name)
+	ns := c.getNs(c.ns)
 	result, err = c.hpa.HorizontalPodAutoscalers(c.ns).Get(ctx, name, options)
 	if err != nil {
 		code := getStatusCode(err)
-		c.metrics.ClientMetricErrors.WithLabelValues("hpa", "get", name, c.ns, code).Inc()
+		c.metrics.ClientMetricErrors.WithLabelValues("hpa", "get", n, ns, code).Inc()
 		return
 	}
-	c.metrics.ClientMetricSuccess.WithLabelValues("hpa", "get", result.Name, result.Namespace).Inc()
+	c.metrics.ClientMetricSuccess.WithLabelValues("hpa", "get", n, ns).Inc()
 	return
 }
 
 // List takes label and field selectors, and returns the list of HorizontalPodAutoscalers that match those selectors.
 func (c *horizontalPodAutoscalers) List(ctx context.Context, opts metav1.ListOptions) (result *v1.HorizontalPodAutoscalerList, err error) {
+	ns := c.getNs(c.ns)
 	result, err = c.hpa.HorizontalPodAutoscalers(c.ns).List(ctx, opts)
 	if err != nil {
 		code := getStatusCode(err)
-		c.metrics.ClientMetricErrors.WithLabelValues("hpa", "list", "", c.ns, code).Inc()
+		c.metrics.ClientMetricErrors.WithLabelValues("hpa", "list", "", ns, code).Inc()
 		return
 	}
-	c.metrics.ClientMetricSuccess.WithLabelValues("hpa", "list", "", c.ns).Inc()
+	c.metrics.ClientMetricSuccess.WithLabelValues("hpa", "list", "", ns).Inc()
 	return
 }
 
 // Watch returns a watch.Interface that watches the requested horizontalPodAutoscalers.
 func (c *horizontalPodAutoscalers) Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
+	ns := c.getNs(c.ns)
 	watch, err := c.hpa.HorizontalPodAutoscalers(c.ns).Watch(ctx, opts)
 	if err != nil {
 		code := getStatusCode(err)
-		c.metrics.ClientMetricErrors.WithLabelValues("hpa", "watch", "", c.ns, code).Inc()
+		c.metrics.ClientMetricErrors.WithLabelValues("hpa", "watch", "", ns, code).Inc()
 		return watch, err
 	}
-	c.metrics.ClientMetricSuccess.WithLabelValues("hpa", "watch", "", c.ns).Inc()
+	c.metrics.ClientMetricSuccess.WithLabelValues("hpa", "watch", "", ns).Inc()
 	return watch, err
 }
 
 // Create takes the representation of a horizontalPodAutoscaler and creates it.  Returns the server's representation of the horizontalPodAutoscaler, and an error, if there is any.
 func (c *horizontalPodAutoscalers) Create(ctx context.Context, horizontalPodAutoscaler *v1.HorizontalPodAutoscaler, opts metav1.CreateOptions) (result *v1.HorizontalPodAutoscaler, err error) {
+	n := c.getName(horizontalPodAutoscaler.Name)
+	ns := c.getNs(c.ns)
 	result, err = c.hpa.HorizontalPodAutoscalers(c.ns).Create(ctx, horizontalPodAutoscaler, opts)
 	if err != nil {
 		code := getStatusCode(err)
-		c.metrics.ClientMetricErrors.WithLabelValues("hpa", "create", horizontalPodAutoscaler.Name, c.ns, code).Inc()
+		c.metrics.ClientMetricErrors.WithLabelValues("hpa", "create", n, ns, code).Inc()
 		return
 	}
-	c.metrics.ClientMetricSuccess.WithLabelValues("hpa", "create", result.Name, result.Namespace).Inc()
+	c.metrics.ClientMetricSuccess.WithLabelValues("hpa", "create", n, ns).Inc()
 	return
 }
 
 // Update takes the representation of a horizontalPodAutoscaler and updates it. Returns the server's representation of the horizontalPodAutoscaler, and an error, if there is any.
 func (c *horizontalPodAutoscalers) Update(ctx context.Context, horizontalPodAutoscaler *v1.HorizontalPodAutoscaler, opts metav1.UpdateOptions) (result *v1.HorizontalPodAutoscaler, err error) {
+	n := c.getName(horizontalPodAutoscaler.Name)
+	ns := c.getNs(c.ns)
 	result, err = c.hpa.HorizontalPodAutoscalers(c.ns).Update(ctx, horizontalPodAutoscaler, opts)
 	if err != nil {
 		code := getStatusCode(err)
-		c.metrics.ClientMetricErrors.WithLabelValues("hpa", "update", horizontalPodAutoscaler.Name, c.ns, code).Inc()
+		c.metrics.ClientMetricErrors.WithLabelValues("hpa", "update", n, ns, code).Inc()
 		return
 	}
-	c.metrics.ClientMetricSuccess.WithLabelValues("hpa", "update", result.Name, result.Namespace).Inc()
+	c.metrics.ClientMetricSuccess.WithLabelValues("hpa", "update", n, ns).Inc()
 	return
 }
 
 // UpdateStatus was generated because the type contains a Status member.
 // Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
 func (c *horizontalPodAutoscalers) UpdateStatus(ctx context.Context, horizontalPodAutoscaler *v1.HorizontalPodAutoscaler, opts metav1.UpdateOptions) (result *v1.HorizontalPodAutoscaler, err error) {
+	n := c.getName(horizontalPodAutoscaler.Name)
+	ns := c.getNs(c.ns)
 	result, err = c.hpa.HorizontalPodAutoscalers(c.ns).UpdateStatus(ctx, horizontalPodAutoscaler, opts)
 	if err != nil {
 		code := getStatusCode(err)
-		c.metrics.ClientMetricErrors.WithLabelValues("hpa", "updatestatus", horizontalPodAutoscaler.Name, c.ns, code).Inc()
+		c.metrics.ClientMetricErrors.WithLabelValues("hpa", "updatestatus", n, ns, code).Inc()
 		return
 	}
-	c.metrics.ClientMetricSuccess.WithLabelValues("hpa", "updatestatus", result.Name, result.Namespace).Inc()
+	c.metrics.ClientMetricSuccess.WithLabelValues("hpa", "updatestatus", n, ns).Inc()
 	return
 }
 
 // Delete takes name of the horizontalPodAutoscaler and deletes it. Returns an error if one occurs.
 func (c *horizontalPodAutoscalers) Delete(ctx context.Context, name string, options *metav1.DeleteOptions) error {
+	n := c.getName(name)
+	ns := c.getNs(c.ns)
 	err := c.hpa.HorizontalPodAutoscalers(c.ns).Delete(ctx, name, options)
 	if err != nil {
 		code := getStatusCode(err)
-		c.metrics.ClientMetricErrors.WithLabelValues("hpa", "delete", name, c.ns, code).Inc()
+		c.metrics.ClientMetricErrors.WithLabelValues("hpa", "delete", n, ns, code).Inc()
 		return err
 	}
-	c.metrics.ClientMetricSuccess.WithLabelValues("hpa", "delete", name, c.ns).Inc()
+	c.metrics.ClientMetricSuccess.WithLabelValues("hpa", "delete", n, ns).Inc()
 	return nil
 }
 
 // DeleteCollection deletes a collection of objects.
 func (c *horizontalPodAutoscalers) DeleteCollection(ctx context.Context, options *metav1.DeleteOptions, listOptions metav1.ListOptions) error {
+	ns := c.getNs(c.ns)
 	err := c.hpa.HorizontalPodAutoscalers(c.ns).DeleteCollection(ctx, options, listOptions)
 	if err != nil {
 		code := getStatusCode(err)
-		c.metrics.ClientMetricErrors.WithLabelValues("hpa", "deletecollection", "", c.ns, code).Inc()
+		c.metrics.ClientMetricErrors.WithLabelValues("hpa", "deletecollection", "", ns, code).Inc()
 		return err
 	}
-	c.metrics.ClientMetricSuccess.WithLabelValues("hpa", "deletecollection", "", c.ns).Inc()
+	c.metrics.ClientMetricSuccess.WithLabelValues("hpa", "deletecollection", "", ns).Inc()
 	return nil
 }
 
 // Patch applies the patch and returns the patched horizontalPodAutoscaler.
 func (c *horizontalPodAutoscalers) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.HorizontalPodAutoscaler, err error) {
+	n := c.getName(name)
+	ns := c.getNs(c.ns)
 	result, err = c.hpa.HorizontalPodAutoscalers(c.ns).Patch(ctx, name, pt, data, opts, subresources...)
 	if err != nil {
 		code := getStatusCode(err)
-		c.metrics.ClientMetricErrors.WithLabelValues("hpa", "patch", name, c.ns, code).Inc()
+		c.metrics.ClientMetricErrors.WithLabelValues("hpa", "patch", n, ns, code).Inc()
 		return
 	}
-	c.metrics.ClientMetricSuccess.WithLabelValues("hpa", "patch", name, c.ns).Inc()
+	c.metrics.ClientMetricSuccess.WithLabelValues("hpa", "patch", n, ns).Inc()
 	return
 }
 
@@ -183,4 +201,18 @@ func getStatusCode(err error) string {
 		code = fmt.Sprintf("%d", c)
 	}
 	return code
+}
+
+func (c *horizontalPodAutoscalers) getNs(ns string) string {
+	if c.disableNamespace {
+		return ""
+	}
+	return ns
+}
+
+func (c *horizontalPodAutoscalers) getName(name string) string {
+	if c.disableName {
+		return ""
+	}
+	return name
 }

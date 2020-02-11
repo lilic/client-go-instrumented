@@ -17,10 +17,10 @@ type HPA struct {
 	auto          scale.HorizontalPodAutoscalerInterface
 }
 
-func NewHPA(client kubernetes.Interface, m *metrics.ClientMetrics) *HPA {
+func NewHPA(client kubernetes.Interface, m *metrics.ClientMetrics, dname, dnamespace bool) *HPA {
 	return &HPA{
 		kubeclientset: client,
-		auto:          scale.NewHorizontalPodAutoscalers("default", client.AutoscalingV1(), m),
+		auto:          scale.NewHorizontalPodAutoscalers("default", client.AutoscalingV1(), m, dname, dnamespace),
 	}
 
 }

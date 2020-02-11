@@ -51,8 +51,8 @@ func main() {
 	r := prometheus.NewRegistry()
 	m := metrics.NewClientMetrics(r)
 
-	// TODO: add flags to disable/enable certain labels
-	c := NewHPA(kubeClient, m)
+	c := NewHPA(kubeClient, m, true, false)
+
 	err = c.Get("bla")
 	if err != nil {
 		fmt.Println(err)
