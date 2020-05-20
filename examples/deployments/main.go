@@ -55,10 +55,10 @@ func main() {
 	// Create new metrics client with the default metrics we registered above
 	// optionally disable name and namespace label values
 	// to save on cardinality.
-	clientMetrics := metrics.NewClientMetrics(m, n, ns)
-	appsClient := appsv1.New(kubeClient, clientMetrics)
+	clientMetrics := metrics.NewClientMetrics(m, false, false)
+	appsClient := appsv1.New(kubeClient.AppsV1(), clientMetrics)
 
-	_, _ := appsClient.Deployments("default").Get(name, metav1.GetOptions{})
+	_, _ = appsClient.Deployments("default").Get(name, metav1.GetOptions{})
 
 	// serve metrics
 	http.Handle("/metrics", promhttp.HandlerFor(r, promhttp.HandlerOpts{}))
